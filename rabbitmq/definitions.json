@@ -1,0 +1,99 @@
+{
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "luciano",
+      "password_hash": "7tICv0yZQ4CpRHPHQqM5ekdU57AnXVmIb+4hzTtwIxewLdLJ",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "luciano",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "messages.topic",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dead-letter.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "review.product.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dead-letter.exchange",
+        "x-dead-letter-routing-key": "dead"
+      }
+    },
+    {
+      "name": "support.request.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dead-letter.exchange",
+        "x-dead-letter-routing-key": "dead"
+      }
+    },
+    {
+      "name": "dead-letter.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "messages.topic",
+      "vhost": "/",
+      "destination": "review.product.queue",
+      "destination_type": "queue",
+      "routing_key": "review.product",
+      "arguments": {}
+    },
+    {
+      "source": "messages.topic",
+      "vhost": "/",
+      "destination": "support.request.queue",
+      "destination_type": "queue",
+      "routing_key": "support.request",
+      "arguments": {}
+    },
+    {
+      "source": "dead-letter.exchange",
+      "vhost": "/",
+      "destination": "dead-letter.queue",
+      "destination_type": "queue",
+      "routing_key": "dead",
+      "arguments": {}
+    }
+  ]
+}

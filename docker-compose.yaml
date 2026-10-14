@@ -1,0 +1,61 @@
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: trabalho05-rabbitmq
+    hostname: rabbitmq
+    restart: unless-stopped
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    environment:
+      RABBITMQ_DEFAULT_USER: luciano
+      RABBITMQ_DEFAULT_PASS: luciano123
+      RABBITMQ_DEFAULT_VHOST: /
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+
+    networks:
+      - trabalho05-network
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  gerador:
+    build:
+      context: ./gerador
+    container_name: trabalho05-gerador
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USER: luciano
+      RABBITMQ_PASS: luciano123
+      EXCHANGE_NAME: messages.topic
+      MESSAGES_PER_SECOND: 10
+      POISON_EVERY: 50
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - trabalho05-network
+
+networks:
+  trabalho05-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
