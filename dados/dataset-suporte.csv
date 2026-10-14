@@ -1,0 +1,16 @@
+texto,categoria
+"Não consigo entrar na minha conta, mesmo com a senha correta.",acesso
+"Esqueci minha senha e não recebo o e-mail de recuperação.",acesso
+"Minha conta foi bloqueada e não consigo fazer login.",acesso
+"O sistema informa que minhas credenciais são inválidas.",acesso
+"Não consigo autenticar minha conta usando o código de verificação.",acesso
+"O aplicativo demora muito para carregar as páginas.",desempenho
+"O sistema fica lento quando acesso a área de relatórios.",desempenho
+"A aplicação trava sempre que tento abrir um arquivo grande.",desempenho
+"As pesquisas estão demorando vários segundos para apresentar resultados.",desempenho
+"O sistema apresenta lentidão quando muitos usuários estão conectados.",desempenho
+"A conexão com o servidor cai constantemente.",conexao
+"Não consigo conectar o aplicativo à rede Wi-Fi.",conexao
+"O sistema informa que não foi possível estabelecer conexão com o servidor.",conexao
+"A conexão é interrompida toda vez que tento enviar uma solicitação.",conexao
+"O aplicativo não consegue se conectar à API.",conexao

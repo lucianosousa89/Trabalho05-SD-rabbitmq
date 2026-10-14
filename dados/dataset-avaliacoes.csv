@@ -1,0 +1,16 @@
+texto,categoria
+"O produto é excelente e superou minhas expectativas.",positivo
+"A qualidade é ótima e o preço é justo.",positivo
+"A entrega foi rápida e o produto chegou em perfeito estado.",positivo
+"Estou muito satisfeito com a compra e recomendo.",positivo
+"O produto funciona perfeitamente e vale cada centavo.",positivo
+"O produto chegou quebrado e não funciona.",negativo
+"A qualidade é péssima e não vale o preço.",negativo
+"A entrega atrasou muito e ninguém deu satisfação.",negativo
+"O produto apresentou defeito poucos dias após a compra.",negativo
+"Estou decepcionado com a compra e não recomendo.",negativo
+"O produto chegou ontem, conforme o prazo informado.",neutro
+"O produto está disponível em três opções de cores.",neutro
+"A embalagem contém o produto e o manual de instruções.",neutro
+"Recebi o pedido com as características descritas no anúncio.",neutro
+"O produto possui dimensões de 30 por 20 centímetros.",neutro
