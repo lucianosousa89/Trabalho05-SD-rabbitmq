@@ -1,40 +1,43 @@
+import smile.classification.DiscreteNaiveBayes;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-/**
- * Modelo carregado e utilizado pelos consumidores.
- */
 public final class ModeloNaiveBayes implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private final Map<String, Integer> documentosPorCategoria;
-    private final Map<String, Map<String, Integer>> palavrasPorCategoria;
-    private final Map<String, Integer> totalPalavrasPorCategoria;
-    private final Set<String> vocabulario;
-    private final int totalDocumentos;
+    private static final long serialVersionUID = 2L;
+    private final List<String> vocabulario;
+    private final List<String> categorias;
+    private final int[][] vetoresTreinamento;
+    private final int[] rotulosTreinamento;
+    private transient DiscreteNaiveBayes classificador;
 
-    // Mantém a estrutura serializada do modelo treinado.
-    private ModeloNaiveBayes(Map<String, Integer> documentosPorCategoria,
-            Map<String, Map<String, Integer>> palavrasPorCategoria,
-            Map<String, Integer> totalPalavrasPorCategoria,
-            Set<String> vocabulario, int totalDocumentos) {
-        this.documentosPorCategoria = documentosPorCategoria;
-        this.palavrasPorCategoria = palavrasPorCategoria;
-        this.totalPalavrasPorCategoria = totalPalavrasPorCategoria;
+    private ModeloNaiveBayes(List<String> vocabulario, List<String> categorias,
+            int[][] vetoresTreinamento, int[] rotulosTreinamento) {
         this.vocabulario = vocabulario;
-        this.totalDocumentos = totalDocumentos;
+        this.categorias = categorias;
+        this.vetoresTreinamento = vetoresTreinamento;
+        this.rotulosTreinamento = rotulosTreinamento;
     }
 
-    // Carrega o modelo persistido em arquivo.
+    public String classificar(String texto) {
+        if (texto == null || texto.isBlank()) {
+            throw new IllegalArgumentException("O texto para classificação não pode estar vazio.");
+        }
+        return categorias.get(classificador.predict(vetorizar(texto)));
+    }
+
     public static ModeloNaiveBayes carregar(Path arquivo) throws IOException {
         try (ObjectInputStream entrada = new ObjectInputStream(Files.newInputStream(arquivo))) {
             Object modelo = entrada.readObject();
             if (!(modelo instanceof ModeloNaiveBayes)) {
-                throw new IOException("O arquivo não contém um modelo Naive Bayes válido.");
+                throw new IOException("O arquivo não contém um modelo Smile válido.");
             }
             return (ModeloNaiveBayes) modelo;
         } catch (ClassNotFoundException e) {
@@ -42,39 +45,28 @@ public final class ModeloNaiveBayes implements Serializable {
         }
     }
 
-    // Retorna a categoria mais provável para o texto.
-    public String classificar(String texto) {
-        if (texto == null || texto.isBlank()) {
-            throw new IllegalArgumentException("O texto para classificação não pode estar vazio.");
-        }
-
-        String melhorCategoria = null;
-        double maiorPontuacao = Double.NEGATIVE_INFINITY;
-        for (String categoria : documentosPorCategoria.keySet()) {
-            double pontuacao = pontuacao(texto, categoria);
-            if (pontuacao > maiorPontuacao) {
-                maiorPontuacao = pontuacao;
-                melhorCategoria = categoria;
-            }
-        }
-        return melhorCategoria;
+    private void readObject(ObjectInputStream entrada) throws IOException, ClassNotFoundException {
+        entrada.defaultReadObject();
+        classificador = new DiscreteNaiveBayes(
+                DiscreteNaiveBayes.Model.MULTINOMIAL, categorias.size(), vocabulario.size());
+        classificador.update(vetoresTreinamento, rotulosTreinamento);
     }
 
-    // Calcula a pontuação do texto para uma categoria.
-    private double pontuacao(String texto, String categoria) {
-        Map<String, Integer> palavras = palavrasPorCategoria.get(categoria);
-        double pontuacao = Math.log((double) documentosPorCategoria.get(categoria) / totalDocumentos);
-        double denominador = totalPalavrasPorCategoria.get(categoria) + vocabulario.size();
-
-        String normalizado = texto.toLowerCase()
-                .replaceAll("[^\\p{L}\\p{N}]+", " ")
-                .trim();
+    private int[] vetorizar(String texto) {
+        int[] vetor = new int[vocabulario.size()];
+        Map<String, Integer> indices = new LinkedHashMap<>();
+        for (int i = 0; i < vocabulario.size(); i++) {
+            indices.put(vocabulario.get(i), i);
+        }
+        String normalizado = texto.toLowerCase().replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
         if (!normalizado.isEmpty()) {
-            for (String palavra : normalizado.split("\\s+")) {
-                double probabilidade = (palavras.getOrDefault(palavra, 0) + 1.0) / denominador;
-                pontuacao += Math.log(probabilidade);
+            for (String palavra : Arrays.asList(normalizado.split("\\s+"))) {
+                Integer indice = indices.get(palavra);
+                if (indice != null) {
+                    vetor[indice]++;
+                }
             }
         }
-        return pontuacao;
+        return vetor;
     }
 }

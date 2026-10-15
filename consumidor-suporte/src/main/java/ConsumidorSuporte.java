@@ -19,6 +19,8 @@ public class ConsumidorSuporte {
     private static final String PASS = env("RABBITMQ_PASS", "luciano123");
     private static final String QUEUE = env("SUPPORT_QUEUE", "support.request.queue");
     private static final String MODEL_PATH = env("MODEL_PATH", "/app/modelos/modelo-suporte.bin");
+    private static final long PROCESSING_DELAY_MS =
+            Math.max(0, Long.parseLong(env("PROCESSING_DELAY_MS", "1500")));
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -32,8 +34,8 @@ public class ConsumidorSuporte {
             canal.basicQos(1);
             canal.queueDeclare(QUEUE, true, false, false, argumentosDaFila());
 
-            System.out.printf("[SUPORTE] Conectado a %s:%d | fila='%s' | modelo='%s'%n",
-                    HOST, PORT, QUEUE, MODEL_PATH);
+            System.out.printf("[SUPORTE] Conectado a %s:%d | fila='%s' | modelo='%s' | atraso=%d ms%n",
+                    HOST, PORT, QUEUE, MODEL_PATH, PROCESSING_DELAY_MS);
 
             DeliverCallback callback = (consumerTag, entrega) -> processar(canal, entrega, modelo);
             canal.basicConsume(QUEUE, false, callback, consumerTag -> {
@@ -64,6 +66,7 @@ public class ConsumidorSuporte {
             String id = mensagem.path("id").asText("sem-id");
             System.out.printf("[SUPORTE] id=%s | categoria=%s | solicitação=\"%s\"%n",
                     id, categoria, conteudo.asText());
+            Thread.sleep(PROCESSING_DELAY_MS);
             canal.basicAck(tag, false);
         } catch (Exception erro) {
             System.err.printf("[SUPORTE] Mensagem rejeitada: %s%n", erro.getMessage());

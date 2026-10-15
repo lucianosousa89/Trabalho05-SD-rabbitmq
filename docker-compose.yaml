@@ -68,6 +68,7 @@ services:
       RABBITMQ_PASS: luciano123
       REVIEW_QUEUE: review.product.queue
       MODEL_PATH: /app/modelos/modelo-avaliacoes.bin
+      PROCESSING_DELAY_MS: 800
 
     depends_on:
       rabbitmq:
@@ -91,6 +92,7 @@ services:
       RABBITMQ_PASS: luciano123
       SUPPORT_QUEUE: support.request.queue
       MODEL_PATH: /app/modelos/modelo-suporte.bin
+      PROCESSING_DELAY_MS: 800
 
     depends_on:
       rabbitmq:

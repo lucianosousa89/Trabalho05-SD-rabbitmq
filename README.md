@@ -1,78 +1,159 @@
-# Trabalho 05 - RabbitMQ
+# Trabalho 05 - Sistema distribuído de classificação com RabbitMQ
 
-## Organização
+Sistema distribuído em Java, Docker e RabbitMQ que gera mensagens, roteia cada
+tipo por um Topic Exchange e classifica o conteúdo com dois modelos
+independentes de Inteligência Artificial usando Smile.
 
-- `dados/`: bases CSV usadas no treinamento;
-- `treinamento/`: código que treina os dois modelos;
-- `modelos/`: artefatos binários gerados pelo treinamento;
-- `gerador/`: produtor de mensagens do RabbitMQ;
-- `consumidor-avaliacoes/`: consumidor responsável por avaliações;
-- `consumidor-suporte/`: consumidor responsável por solicitações de suporte.
+## Arquitetura
 
-O gerador não contém código nem dependências de aprendizado de máquina.
+O `docker compose` inicia exatamente quatro containers de serviço:
 
-## Treinamento dos modelos
+```text
+gerador --(messages.topic / topic)--> review.product.queue
+                                    --> support.request.queue
 
-O módulo de treinamento possui dois classificadores Multinomial Naive Bayes:
+review.product.queue  --> consumidor-avaliacoes --> modelo-avaliacoes.bin
+support.request.queue --> consumidor-suporte    --> modelo-suporte.bin
 
-- `modelo-avaliacoes.bin`: `positivo`, `negativo` ou `neutro`;
-- `modelo-suporte.bin`: `acesso`, `desempenho` ou `conexao`.
+filas de origem --(rejeição sem requeue)--> dead-letter.exchange
+                                           --> dead-letter.queue
+```
 
-Para treinar o modelo de avaliações:
+- `rabbitmq`: RabbitMQ 4 com painel de administração em
+  `http://localhost:15672`;
+- `gerador`: publica 10 mensagens por segundo, alternando avaliações de
+  produtos e solicitações de suporte;
+- `consumidor-avaliacoes`: consome somente `review.product` e classifica como
+  `positivo`, `negativo` ou `neutro`;
+- `consumidor-suporte`: consome somente `support.request` e classifica como
+  `acesso`, `desempenho` ou `conexao`.
+
+Cada mensagem possui `id` (UUID), `timestamp`, `tipo` e `conteudo`. As
+mensagens são persistentes e usam as routing keys `review.product` e
+`support.request`. Os consumidores usam `basicQos(1)`, confirmação manual
+(`basicAck`) e rejeição sem reprocessamento (`basicNack(..., false, false)`).
+As filas de origem possuem argumentos de dead lettering, encaminhando mensagens
+com erro para `dead-letter.queue`.
+
+O gerador cria uma mensagem inválida (conteúdo vazio) a cada 50 mensagens
+(`POISON_EVERY=50`) para tornar a demonstração da DLQ reproduzível. Cada
+consumidor aguarda 1,5 segundo antes do ACK (`PROCESSING_DELAY_MS=1500`), de
+modo que a taxa de processamento seja menor que a taxa de chegada e o
+crescimento das filas possa ser observado no painel.
+
+## Modelos de IA
+
+O módulo `treinamento/` treina dois classificadores Multinomial Naive Bayes da
+biblioteca [Smile](https://haifengl.github.io/). Cada texto é convertido em um
+vetor de contagem de palavras (bag-of-words):
+
+- `modelo-avaliacoes.bin`: sentimentos `positivo`, `negativo` e `neutro`;
+- `modelo-suporte.bin`: categorias `acesso`, `desempenho` e `conexao`.
+
+Os consumidores carregam os artefatos binários e possuem sua própria instância
+do mecanismo de classificação.
+
+## Execução
+
+Pré-requisitos: Docker Desktop com Docker Compose, ou Docker Engine com o
+plugin `docker compose`.
+
+Para gerar novamente os modelos:
 
 ```bash
 mvn -f treinamento/pom.xml compile exec:java \
   -Dexec.mainClass=TreinarModeloAvaliacoes
-```
-
-Para treinar o modelo de suporte:
-
-```bash
 mvn -f treinamento/pom.xml compile exec:java \
   -Dexec.mainClass=TreinarModeloSuporte
 ```
 
-Os dois comandos salvam os modelos em `modelos/` e exibem a acurácia na
-respectiva base de treinamento.
-
-Para validar o gerador separadamente:
+Para compilar os módulos Java:
 
 ```bash
 mvn -f gerador/pom.xml package
-```
-
-## Consumidor de avaliações
-
-O consumidor em `consumidor-avaliacoes/` consome a fila
-`review.product.queue`, carrega o modelo embarcado
-`modelos/modelo-avaliacoes.bin` e classifica cada avaliação como `positivo`,
-`negativo` ou `neutro`.
-
-Para validar a compilação:
-
-```bash
 mvn -f consumidor-avaliacoes/pom.xml package
+mvn -f consumidor-suporte/pom.xml package
 ```
 
-Para executar toda a infraestrutura:
+Para iniciar os quatro containers:
 
 ```bash
 docker compose up --build
 ```
 
-Mensagens processadas com sucesso são confirmadas no RabbitMQ. Mensagens
-inválidas ou vazias são rejeitadas sem reprocessamento e encaminhadas para a
-fila de mensagens mortas.
-
-## Consumidor de suporte
-
-O consumidor em `consumidor-suporte/` consome a fila
-`support.request.queue`, carrega o modelo `modelos/modelo-suporte.bin` e
-classifica cada solicitação nas categorias `acesso`, `desempenho` ou
-`conexao`.
-
-Para validar a compilação:
+Para acompanhar os logs:
 
 ```bash
-mvn -f consumidor-suporte/pom.xml package
+docker compose logs -f gerador
+docker compose logs -f consumidor-avaliacoes
+docker compose logs -f consumidor-suporte
 ```
+
+No painel do RabbitMQ, use:
+
+- usuário: `luciano`;
+- senha: `luciano123`;
+- vhost: `/`.
+
+Abra **Queues and Streams** para observar
+`review.product.queue`, `support.request.queue` e `dead-letter.queue`.
+
+## Evidências da execução
+
+As capturas abaixo foram feitas durante a execução dos containers. Elas mostram
+as classificações, o acúmulo de mensagens nas filas e a configuração e ocupação
+da DLQ. Os números podem variar entre capturas porque as filas continuam sendo
+atualizadas durante a execução.
+
+### Filas e encaminhamento para a DLQ
+
+O log do gerador mostra publicações contínuas com as routing keys
+`review.product` e `support.request`, acompanhadas de identificadores e
+conteúdos das mensagens.
+
+![Publicações do gerador com as routing keys](evidencias/logs-gerador.png)
+
+A visão geral do RabbitMQ mostra as três filas em estado `running`. Na captura,
+`review.product.queue` tem 1.693 mensagens prontas e uma não confirmada; a taxa
+de entrada é 5,0 mensagens/s, acima das taxas de entrega e ACK (1,4/s). Já
+`support.request.queue` tem 1.606 prontas e uma não confirmada; sua entrada
+também é 5,0/s, acima da entrega (1,6/s) e do ACK (1,4/s). Esses valores mostram
+o acúmulo de mensagens enquanto a entrada permanece acima do processamento.
+As features `DLX` e `DLK` indicam que as filas de origem têm configuração de
+dead-letter exchange e dead-letter routing key.
+
+![Filas de avaliações, suporte e DLQ no RabbitMQ](evidencias/situacaodasfilas.png)
+
+Na captura da visão geral, `dead-letter.queue` tem 27 mensagens prontas e zero
+não confirmadas. A captura de detalhes dessa fila, feita em outro momento,
+mostra 30 prontas, zero não confirmadas e 30 no total. A diferença de contagem
+é esperada entre capturas realizadas em momentos distintos. O gráfico mostra o
+histórico de mensagens enfileiradas no último minuto.
+
+Essas telas mostram a quantidade e o estado das mensagens, mas não exibem seu
+conteúdo. A confirmação de que uma mensagem específica é inválida depende dos
+logs de rejeição dos consumidores e da configuração de dead lettering mostrada
+no projeto; para inspecionar o corpo, é necessário consultar as mensagens da
+fila na interface do RabbitMQ.
+
+![Mensagens na dead-letter.queue](evidencias/fila-recusadas.png)
+
+### Classificação das avaliações e solicitações
+
+Os logs mostram o identificador e a classificação calculada pelo consumidor de
+avaliações (sentimento) e pelo consumidor de suporte (categoria).
+
+![Classificações de sentimento das avaliações](evidencias/consumidor-avaliações.png)
+
+![Classificações das solicitações de suporte](evidencias/consumidor-suporte.png)
+
+### Rejeição de mensagens inválidas
+
+Os dois consumidores registram a rejeição de mensagens sem conteúdo válido.
+Como as filas estão configuradas com dead lettering, essas mensagens são
+encaminhadas para `dead-letter.queue` em vez de serem descartadas.
+
+![Consumidor de avaliações rejeitando mensagem inválida](evidencias/consumidoravaliacoes-rejeitando.png)
+
+![Consumidor de suporte rejeitando mensagem inválida](evidencias/consumidorsuporte-rejeitando.png)
+

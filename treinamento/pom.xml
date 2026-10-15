@@ -9,6 +9,13 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+    <dependencies>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-core</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+    </dependencies>
     <build>
         <plugins>
             <plugin>
