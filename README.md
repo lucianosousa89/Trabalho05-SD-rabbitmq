@@ -40,3 +40,39 @@ Para validar o gerador separadamente:
 ```bash
 mvn -f gerador/pom.xml package
 ```
+
+## Consumidor de avaliações
+
+O consumidor em `consumidor-avaliacoes/` consome a fila
+`review.product.queue`, carrega o modelo embarcado
+`modelos/modelo-avaliacoes.bin` e classifica cada avaliação como `positivo`,
+`negativo` ou `neutro`.
+
+Para validar a compilação:
+
+```bash
+mvn -f consumidor-avaliacoes/pom.xml package
+```
+
+Para executar toda a infraestrutura:
+
+```bash
+docker compose up --build
+```
+
+Mensagens processadas com sucesso são confirmadas no RabbitMQ. Mensagens
+inválidas ou vazias são rejeitadas sem reprocessamento e encaminhadas para a
+fila de mensagens mortas.
+
+## Consumidor de suporte
+
+O consumidor em `consumidor-suporte/` consome a fila
+`support.request.queue`, carrega o modelo `modelos/modelo-suporte.bin` e
+classifica cada solicitação nas categorias `acesso`, `desempenho` ou
+`conexao`.
+
+Para validar a compilação:
+
+```bash
+mvn -f consumidor-suporte/pom.xml package
+```

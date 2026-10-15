@@ -53,6 +53,52 @@ services:
     networks:
       - trabalho05-network
 
+  consumidor-avaliacoes:
+    build:
+      context: .
+      dockerfile: consumidor-avaliacoes/Dockerfile
+    container_name: trabalho05-consumidor-avaliacoes
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USER: luciano
+      RABBITMQ_PASS: luciano123
+      REVIEW_QUEUE: review.product.queue
+      MODEL_PATH: /app/modelos/modelo-avaliacoes.bin
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - trabalho05-network
+
+  consumidor-suporte:
+    build:
+      context: .
+      dockerfile: consumidor-suporte/Dockerfile
+    container_name: trabalho05-consumidor-suporte
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USER: luciano
+      RABBITMQ_PASS: luciano123
+      SUPPORT_QUEUE: support.request.queue
+      MODEL_PATH: /app/modelos/modelo-suporte.bin
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - trabalho05-network
+
 networks:
   trabalho05-network:
     driver: bridge
