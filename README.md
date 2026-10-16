@@ -2,7 +2,7 @@
 
 Sistema distribuído em Java, Docker e RabbitMQ que gera mensagens, roteia cada
 tipo por um Topic Exchange e classifica o conteúdo com dois modelos
-independentes de Inteligência Artificial usando Smile.
+independentes de Inteligência Artificial. O video de demonstração está disponível no [YouTube](https://youtu.be/HgOmFi7wRLw).
 
 ## Arquitetura
 
@@ -156,4 +156,8 @@ encaminhadas para `dead-letter.queue` em vez de serem descartadas.
 ![Consumidor de avaliações rejeitando mensagem inválida](evidencias/consumidoravaliacoes-rejeitando.png)
 
 ![Consumidor de suporte rejeitando mensagem inválida](evidencias/consumidorsuporte-rejeitando.png)
+
+## Vídeo de demonstração
+
+[Assistir à demonstração do sistema no YouTube](https://youtu.be/HgOmFi7wRLw)
 
